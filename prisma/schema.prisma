@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Product model for the catalog.
+///
+/// Index strategy:
+/// 1. (updated_at DESC, id DESC) — primary pagination index; O(log n) keyset seeks
+/// 2. (category, updated_at DESC, id DESC) — filtered pagination by category
+/// 3. (created_at DESC) — analytics / time-range queries
+/// 4. (name) — search support; can be upgraded to GIN/tsvector for full-text
+model Product {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  category  String   @db.VarChar(100)
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([updatedAt(sort: Desc), id(sort: Desc)], name: "idx_products_updated_id")
+  @@index([category, updatedAt(sort: Desc), id(sort: Desc)], name: "idx_products_category_updated_id")
+  @@index([createdAt(sort: Desc)], name: "idx_products_created_at")
+  @@index([name], name: "idx_products_name")
+  @@map("products")
+}
